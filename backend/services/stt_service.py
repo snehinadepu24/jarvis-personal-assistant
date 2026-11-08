@@ -75,24 +75,35 @@ class MoonshineSTTService:
         return cls._instance
 
     def _init_model(self) -> None:
-        # Try Moonshine Voice first
-        try:
-            from moonshine_voice import Transcriber, ModelArch, get_model_for_language
-            arch = ModelArch.SMALL_STREAMING
-            if self.model_size == "medium-streaming":
-                arch = ModelArch.MEDIUM_STREAMING
-            elif self.model_size == "tiny-streaming":
-                arch = ModelArch.TINY_STREAMING
+        def _has_internet() -> bool:
+            import socket
+            try:
+                socket.create_connection(("1.1.1.1", 53), timeout=0.3)
+                return True
+            except OSError:
+                return False
 
-            model_path, model_arch = get_model_for_language("en", arch)
-            self.transcriber = Transcriber(model_path=model_path, model_arch=model_arch)
-            self.engine = "moonshine-small-streaming"
-            logger.info("Moonshine Small Streaming STT initialized successfully.")
-            return
-        except ImportError:
-            logger.warning("moonshine-voice package not installed. Checking faster-whisper fallback...")
-        except Exception as e:
-            logger.warning(f"Failed to initialize moonshine-voice: {e}. Checking faster-whisper fallback...")
+        online = _has_internet()
+
+        # Try Moonshine Voice first if online
+        if online:
+            try:
+                from moonshine_voice import Transcriber, ModelArch, get_model_for_language
+                arch = ModelArch.SMALL_STREAMING
+                if self.model_size == "medium-streaming":
+                    arch = ModelArch.MEDIUM_STREAMING
+                elif self.model_size == "tiny-streaming":
+                    arch = ModelArch.TINY_STREAMING
+
+                model_path, model_arch = get_model_for_language("en", arch)
+                self.transcriber = Transcriber(model_path=model_path, model_arch=model_arch)
+                self.engine = "moonshine-small-streaming"
+                logger.info("Moonshine Small Streaming STT initialized successfully.")
+                return
+            except ImportError:
+                logger.warning("moonshine-voice package not installed. Checking faster-whisper fallback...")
+            except Exception as e:
+                logger.warning(f"Failed to initialize moonshine-voice: {e}. Checking faster-whisper fallback...")
 
         # Fallback to faster-whisper on CPU
         try:

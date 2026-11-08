@@ -34,7 +34,17 @@ def test_vertical_slice_bridge_execution(tmp_path):
 
             async def send_text(self, text: str):
                 import json
-                events_received.append(json.loads(text))
+                ev = json.loads(text)
+                events_received.append(ev)
+                ev_type = ev.get("event")
+                ev_task = ev.get("task_id")
+                data = ev.get("data", {})
+                print(f"[WS EVENT RECEIVED] {ev_type} for task {ev_task}", flush=True)
+                if ev_type == EventType.ACTION_APPROVAL_REQUIRED.value:
+                    nonce = data.get("nonce", "")
+                    print(f"[WS AUTO-APPROVING] nonce={nonce}", flush=True)
+                    if ev_task:
+                        await bridge.respond_approval(ev_task, nonce=nonce, approved=True)
 
         ws = MockWebSocket()
         await bridge.register_websocket(ws)

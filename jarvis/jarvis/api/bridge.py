@@ -174,7 +174,10 @@ class AgentBridge:
             }, task_id=task_id)
             try:
                 # Wait for user input from UI or timeout
-                return await asyncio.wait_for(future, timeout=cfg.gate_timeout_s)
+                ans = await asyncio.wait_for(future, timeout=cfg.gate_timeout_s)
+                if ans is True or (isinstance(ans, str) and ans.strip() == req.nonce):
+                    return req.nonce if req.tier >= 4 else True
+                return False
             except asyncio.TimeoutError:
                 await self.broadcast_event(EventType.ACTION_FAILED, {
                     "reason": "Confirmation timed out",

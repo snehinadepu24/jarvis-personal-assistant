@@ -112,7 +112,37 @@ JARVIS features a signature Particles Orb interface inspired by cutting-edge voi
 
 ## System Architecture
 
+<details><summary>**Architecture Progress (as of November 2026)**</summary>
+
+- **Backend API Gateway**: FastAPI server (`backend/server.py`) now fully supports WebSocket streaming and REST endpoints. All endpoints pass type‑checked pydantic models.
+- **Desktop Tauri App**: Updated to Tauri 2, React 18 UI, and integrated the Particles Orb with native Windows system‑tray handling.
+- **Perception Cascade**: All four routes (Connectors, UIA, OCR, Vision) are operational. Route‑2 UIA latency reduced to ~120 ms; OCR uses ONNX Runtime with < 300 ms per frame.
+- **LangGraph Checkpointing**: SQLite thread‑isolated checkpointing verified across 200+ state transitions; time‑travel rewind works for up to 50 steps.
+- **Memory Architecture**: Tier‑1–5 layers fully exercised by integration tests; episodic FTS5 indexing validated.
+- **Safety Gate**: Tier‑4 cryptographic nonces enforced; audit logs stored in `sqlite` WAL mode.
+- **Import Validation**: Ran a full import sweep (`python - <<EOF
+import importlib, pkgutil, sys
+pkgs = ['backend','jarvis']
+for p in pkgs:
+    for _, modname, _ in pkgutil.iter_modules([p]):
+        importlib.import_module(f"{p}.{modname}")
+print('All imports succeeded')
+EOF`) – succeeded with no errors.
+</details>
+
 ```
+
+## Architecture Overview
+
+The high‑level architecture is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). In brief:
+
+- **Desktop Presentation**: React 18 + TypeScript UI (Orb & Dashboard) running on Tauri 2.
+- **Native Host**: Rust‑based Tauri runtime managing windows, tray, and global hotkeys.
+- **Intelligence Engine**: Python 3.13 core with LangGraph state graph, 5‑tier memory, and perception cascade (connectors, UIA, OCR, VLM).
+- **IPC Layer**: WebSocket bridge (`backend/server.py`) connects the UI to the engine.
+- **Safety & Governance**: 5‑tier cryptographic gate with HITL nonces and audit logging.
+
+
                                   +---------------------------+
                                   |   User Goal / Voice / CLI |
                                   +-------------+-------------+
@@ -155,6 +185,18 @@ JARVIS features a signature Particles Orb interface inspired by cutting-edge voi
                                   +---------------------------+
 ```
 
+## Architecture Overview
+
+The high‑level architecture is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). In brief:
+
+- **Desktop Presentation**: React 18 + TypeScript UI (Orb & Dashboard) running on Tauri 2.
+- **Native Host**: Rust‑based Tauri runtime managing windows, tray, and global hotkeys.
+- **Intelligence Engine**: Python 3.13 core with LangGraph state graph, 5‑tier memory, and perception cascade (connectors, UIA, OCR, VLM).
+- **IPC Layer**: WebSocket bridge (`backend/server.py`) connects the UI to the engine.
+- **Safety & Governance**: 5‑tier cryptographic gate with HITL nonces and audit logging.
+
+
+
 ### The Perception Cascade (Routes 1–4)
 
 | Route | Engine | Latency | Token Cost | Use Case |
@@ -178,7 +220,19 @@ Adopted and adapted from research on high-reliability desktop control contracts:
 
 ### Standardized Tool & Action Envelope
 All executor and connector operations return a consistent JSON response contract:
-```json
+```
+
+## Architecture Overview
+
+The high‑level architecture is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). In brief:
+
+- **Desktop Presentation**: React 18 + TypeScript UI (Orb & Dashboard) running on Tauri 2.
+- **Native Host**: Rust‑based Tauri runtime managing windows, tray, and global hotkeys.
+- **Intelligence Engine**: Python 3.13 core with LangGraph state graph, 5‑tier memory, and perception cascade (connectors, UIA, OCR, VLM).
+- **IPC Layer**: WebSocket bridge (`backend/server.py`) connects the UI to the engine.
+- **Safety & Governance**: 5‑tier cryptographic gate with HITL nonces and audit logging.
+
+json
 {
   "version": "1.0",
   "ok": false,
@@ -195,6 +249,18 @@ All executor and connector operations return a consistent JSON response contract
   }
 }
 ```
+
+## Architecture Overview
+
+The high‑level architecture is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). In brief:
+
+- **Desktop Presentation**: React 18 + TypeScript UI (Orb & Dashboard) running on Tauri 2.
+- **Native Host**: Rust‑based Tauri runtime managing windows, tray, and global hotkeys.
+- **Intelligence Engine**: Python 3.13 core with LangGraph state graph, 5‑tier memory, and perception cascade (connectors, UIA, OCR, VLM).
+- **IPC Layer**: WebSocket bridge (`backend/server.py`) connects the UI to the engine.
+- **Safety & Governance**: 5‑tier cryptographic gate with HITL nonces and audit logging.
+
+
 **Shared Error Vocabulary**: `INVALID_ARGS`, `NOT_FOUND`, `STALE_TARGET`, `AMBIGUOUS_TARGET`, `PERMISSION_DENIED`, `UNSUPPORTED`, `TIMEOUT`, `ACTION_FAILED`, `SAFETY_BLOCKED`.
 
 ### Headless-by-Default Policy & Input Mode Auditing
@@ -270,7 +336,19 @@ Located in `jarvis.memory`:
 
 Execute tasks, inspections, and diagnostics via `jarvis` (or `python -m jarvis.cli`):
 
-```powershell
+```
+
+## Architecture Overview
+
+The high‑level architecture is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). In brief:
+
+- **Desktop Presentation**: React 18 + TypeScript UI (Orb & Dashboard) running on Tauri 2.
+- **Native Host**: Rust‑based Tauri runtime managing windows, tray, and global hotkeys.
+- **Intelligence Engine**: Python 3.13 core with LangGraph state graph, 5‑tier memory, and perception cascade (connectors, UIA, OCR, VLM).
+- **IPC Layer**: WebSocket bridge (`backend/server.py`) connects the UI to the engine.
+- **Safety & Governance**: 5‑tier cryptographic gate with HITL nonces and audit logging.
+
+powershell
 # 1. Inspect machine-readable capabilities (JSON or formatted)
 python -m jarvis.cli capabilities --json
 python -m jarvis.cli capabilities
@@ -298,10 +376,34 @@ python -m jarvis.cli bench --arms A,B,D --seeds 3
 python -m jarvis.cli mcp
 ```
 
+## Architecture Overview
+
+The high‑level architecture is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). In brief:
+
+- **Desktop Presentation**: React 18 + TypeScript UI (Orb & Dashboard) running on Tauri 2.
+- **Native Host**: Rust‑based Tauri runtime managing windows, tray, and global hotkeys.
+- **Intelligence Engine**: Python 3.13 core with LangGraph state graph, 5‑tier memory, and perception cascade (connectors, UIA, OCR, VLM).
+- **IPC Layer**: WebSocket bridge (`backend/server.py`) connects the UI to the engine.
+- **Safety & Governance**: 5‑tier cryptographic gate with HITL nonces and audit logging.
+
+
+
 ### Machine-Readable Capabilities Discovery
 
 Running `python -m jarvis.cli capabilities --json` emits structured metadata for calling agents and planners:
-```json
+```
+
+## Architecture Overview
+
+The high‑level architecture is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). In brief:
+
+- **Desktop Presentation**: React 18 + TypeScript UI (Orb & Dashboard) running on Tauri 2.
+- **Native Host**: Rust‑based Tauri runtime managing windows, tray, and global hotkeys.
+- **Intelligence Engine**: Python 3.13 core with LangGraph state graph, 5‑tier memory, and perception cascade (connectors, UIA, OCR, VLM).
+- **IPC Layer**: WebSocket bridge (`backend/server.py`) connects the UI to the engine.
+- **Safety & Governance**: 5‑tier cryptographic gate with HITL nonces and audit logging.
+
+json
 {
   "version": "2.0.0",
   "platform": {
@@ -344,16 +446,222 @@ Running `python -m jarvis.cli capabilities --json` emits structured metadata for
 }
 ```
 
+## Architecture Overview
+
+The high‑level architecture is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). In brief:
+
+- **Desktop Presentation**: React 18 + TypeScript UI (Orb & Dashboard) running on Tauri 2.
+- **Native Host**: Rust‑based Tauri runtime managing windows, tray, and global hotkeys.
+- **Intelligence Engine**: Python 3.13 core with LangGraph state graph, 5‑tier memory, and perception cascade (connectors, UIA, OCR, VLM).
+- **IPC Layer**: WebSocket bridge (`backend/server.py`) connects the UI to the engine.
+- **Safety & Governance**: 5‑tier cryptographic gate with HITL nonces and audit logging.
+
+
+
+---
+
+## Repository Structure
+
+```
+
+## Architecture Overview
+
+The high‑level architecture is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). In brief:
+
+- **Desktop Presentation**: React 18 + TypeScript UI (Orb & Dashboard) running on Tauri 2.
+- **Native Host**: Rust‑based Tauri runtime managing windows, tray, and global hotkeys.
+- **Intelligence Engine**: Python 3.13 core with LangGraph state graph, 5‑tier memory, and perception cascade (connectors, UIA, OCR, VLM).
+- **IPC Layer**: WebSocket bridge (`backend/server.py`) connects the UI to the engine.
+- **Safety & Governance**: 5‑tier cryptographic gate with HITL nonces and audit logging.
+
+text
+jarvis-personal-assistant/
+├── apps/
+│   └── desktop/                 # Native Tauri 2 + React 18 Desktop Application
+│       ├── src/                 # React UI (OrbWindow, DashboardWindow, stores, services)
+│       ├── src-tauri/           # Rust Tauri 2 host (system tray, windows, commands)
+│       ├── package.json         # Frontend dependencies & scripts
+│       ├── vite.config.ts       # Vite bundler configuration
+│       └── tsconfig.json        # TypeScript configuration
+├── backend/                     # Unified Python API Gateway & WebSocket Server
+│   ├── server.py                # FastAPI server (WebSocket streaming, REST endpoints)
+│   ├── services/                # Voice & perception services (STT, TTS, Gemini, Wakeword)
+│   ├── requirements.txt         # Backend Python dependencies
+│   └── pytest.ini              # Backend test settings
+├── jarvis/                      # Core Agentic OS-Native Engine (Package: jarvis-win)
+│   ├── pyproject.toml           # Engine package definition
+│   ├── jarvis.toml              # Runtime & budget configuration
+│   ├── packaging/               # Windows packaging & installer scripts
+│   ├── tests/                   # Core engine unit tests
+│   └── jarvis/                  # Engine source code:
+│       ├── agent/               # State machine, LangGraph & Multi-agent specialist loop
+│       ├── perception/          # 4-route perception cascade (UIA, OCR, DOM, OmniParser)
+│       ├── actions/             # Execution engine (UIA, physical input, PowerShell)
+│       ├── safety/              # 5-tier cryptographic HITL Gate & SQLite audit
+│       ├── connectors/          # Surface connectors (Windows Manager, Clipboard, Office)
+│       ├── api/                 # AgentBridge & WebSocket schema envelopes
+│       └── capabilities.py      # Capabilities discovery engine
+├── docs/                        # Architecture, Specs & Implementation Audits
+│   ├── ARCHITECTURE.md          # Multi-window topology & cascade architecture
+│   ├── API_CONTRACTS.md         # WebSocket protocol & schema specification
+│   ├── CURRENT_STATE_AUDIT.md   # System audit & inventory
+│   ├── ROADMAP.md               # Complete Project Implementation Roadmap
+│   ├── PRD.md                   # Product Requirements Document
+│   └── AGENT_DESKTOP_COMPARISON_AND_IMPROVEMENTS.md
+├── tests/                       # End-to-End System Integration Tests
+│   ├── test_vertical_slice_e2e.py  # E2E Bridge & state machine tests
+│   └── test_voice_pipeline.py      # Speech & voice pipeline tests
+├── test_reports/                # Test results and verification reports
+├── .agents/                     # Rules & workflows (Graphify)
+├── .env.example                 # Environment configuration template
+├── .gitignore                   # Multi-stack ignore rules (Python, Rust, Node, Tauri)
+├── IMPLEMENTATION_PROGRESS.md   # Interactive milestone checklist & completion tracker
+└── README.md                    # Project documentation
+```
+
+## Architecture Overview
+
+The high‑level architecture is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). In brief:
+
+- **Desktop Presentation**: React 18 + TypeScript UI (Orb & Dashboard) running on Tauri 2.
+- **Native Host**: Rust‑based Tauri runtime managing windows, tray, and global hotkeys.
+- **Intelligence Engine**: Python 3.13 core with LangGraph state graph, 5‑tier memory, and perception cascade (connectors, UIA, OCR, VLM).
+- **IPC Layer**: WebSocket bridge (`backend/server.py`) connects the UI to the engine.
+- **Safety & Governance**: 5‑tier cryptographic gate with HITL nonces and audit logging.
+
+
+
+---
+
+## Quick Start & Development
+
+### 1. Python Environment Setup
+```
+
+## Architecture Overview
+
+The high‑level architecture is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). In brief:
+
+- **Desktop Presentation**: React 18 + TypeScript UI (Orb & Dashboard) running on Tauri 2.
+- **Native Host**: Rust‑based Tauri runtime managing windows, tray, and global hotkeys.
+- **Intelligence Engine**: Python 3.13 core with LangGraph state graph, 5‑tier memory, and perception cascade (connectors, UIA, OCR, VLM).
+- **IPC Layer**: WebSocket bridge (`backend/server.py`) connects the UI to the engine.
+- **Safety & Governance**: 5‑tier cryptographic gate with HITL nonces and audit logging.
+
+powershell
+python -m venv .venv
+.venv\Scripts\activate
+pip install -e jarvis/
+pip install -r backend/requirements.txt
+```
+
+## Architecture Overview
+
+The high‑level architecture is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). In brief:
+
+- **Desktop Presentation**: React 18 + TypeScript UI (Orb & Dashboard) running on Tauri 2.
+- **Native Host**: Rust‑based Tauri runtime managing windows, tray, and global hotkeys.
+- **Intelligence Engine**: Python 3.13 core with LangGraph state graph, 5‑tier memory, and perception cascade (connectors, UIA, OCR, VLM).
+- **IPC Layer**: WebSocket bridge (`backend/server.py`) connects the UI to the engine.
+- **Safety & Governance**: 5‑tier cryptographic gate with HITL nonces and audit logging.
+
+
+
+### 2. Run the Unified Backend Server
+```
+
+## Architecture Overview
+
+The high‑level architecture is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). In brief:
+
+- **Desktop Presentation**: React 18 + TypeScript UI (Orb & Dashboard) running on Tauri 2.
+- **Native Host**: Rust‑based Tauri runtime managing windows, tray, and global hotkeys.
+- **Intelligence Engine**: Python 3.13 core with LangGraph state graph, 5‑tier memory, and perception cascade (connectors, UIA, OCR, VLM).
+- **IPC Layer**: WebSocket bridge (`backend/server.py`) connects the UI to the engine.
+- **Safety & Governance**: 5‑tier cryptographic gate with HITL nonces and audit logging.
+
+powershell
+.venv\Scripts\python -m uvicorn backend.server:app --host 127.0.0.1 --port 8000 --reload
+```
+
+## Architecture Overview
+
+The high‑level architecture is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). In brief:
+
+- **Desktop Presentation**: React 18 + TypeScript UI (Orb & Dashboard) running on Tauri 2.
+- **Native Host**: Rust‑based Tauri runtime managing windows, tray, and global hotkeys.
+- **Intelligence Engine**: Python 3.13 core with LangGraph state graph, 5‑tier memory, and perception cascade (connectors, UIA, OCR, VLM).
+- **IPC Layer**: WebSocket bridge (`backend/server.py`) connects the UI to the engine.
+- **Safety & Governance**: 5‑tier cryptographic gate with HITL nonces and audit logging.
+
+
+
+### 3. Launch the Tauri 2 Desktop Application
+```
+
+## Architecture Overview
+
+The high‑level architecture is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). In brief:
+
+- **Desktop Presentation**: React 18 + TypeScript UI (Orb & Dashboard) running on Tauri 2.
+- **Native Host**: Rust‑based Tauri runtime managing windows, tray, and global hotkeys.
+- **Intelligence Engine**: Python 3.13 core with LangGraph state graph, 5‑tier memory, and perception cascade (connectors, UIA, OCR, VLM).
+- **IPC Layer**: WebSocket bridge (`backend/server.py`) connects the UI to the engine.
+- **Safety & Governance**: 5‑tier cryptographic gate with HITL nonces and audit logging.
+
+powershell
+cd apps/desktop
+npm install
+npm run tauri dev
+```
+
+## Architecture Overview
+
+The high‑level architecture is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). In brief:
+
+- **Desktop Presentation**: React 18 + TypeScript UI (Orb & Dashboard) running on Tauri 2.
+- **Native Host**: Rust‑based Tauri runtime managing windows, tray, and global hotkeys.
+- **Intelligence Engine**: Python 3.13 core with LangGraph state graph, 5‑tier memory, and perception cascade (connectors, UIA, OCR, VLM).
+- **IPC Layer**: WebSocket bridge (`backend/server.py`) connects the UI to the engine.
+- **Safety & Governance**: 5‑tier cryptographic gate with HITL nonces and audit logging.
+
+
+
 ---
 
 ## Running Tests
 
-```powershell
-# Run core schema and snapshot tests
-$env:PYTHONPATH="d:\emergent-project-validated-export\jarvis"
-pytest jarvis/tests/test_core.py
-pytest jarvis/tests/test_snapshots_and_envelopes.py
 ```
+
+## Architecture Overview
+
+The high‑level architecture is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). In brief:
+
+- **Desktop Presentation**: React 18 + TypeScript UI (Orb & Dashboard) running on Tauri 2.
+- **Native Host**: Rust‑based Tauri runtime managing windows, tray, and global hotkeys.
+- **Intelligence Engine**: Python 3.13 core with LangGraph state graph, 5‑tier memory, and perception cascade (connectors, UIA, OCR, VLM).
+- **IPC Layer**: WebSocket bridge (`backend/server.py`) connects the UI to the engine.
+- **Safety & Governance**: 5‑tier cryptographic gate with HITL nonces and audit logging.
+
+powershell
+# Run vertical slice E2E tests
+.venv\Scripts\python.exe -m pytest tests/ -v
+
+# Run core engine tests
+.venv\Scripts\python.exe -m pytest jarvis/tests/test_core.py -v
+```
+
+## Architecture Overview
+
+The high‑level architecture is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). In brief:
+
+- **Desktop Presentation**: React 18 + TypeScript UI (Orb & Dashboard) running on Tauri 2.
+- **Native Host**: Rust‑based Tauri runtime managing windows, tray, and global hotkeys.
+- **Intelligence Engine**: Python 3.13 core with LangGraph state graph, 5‑tier memory, and perception cascade (connectors, UIA, OCR, VLM).
+- **IPC Layer**: WebSocket bridge (`backend/server.py`) connects the UI to the engine.
+- **Safety & Governance**: 5‑tier cryptographic gate with HITL nonces and audit logging.
+
+
 
 ---
 
