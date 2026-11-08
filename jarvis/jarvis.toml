@@ -1,0 +1,46 @@
+[planner]
+provider = "gemini"
+model = "gemini-2.5-flash"
+thinking = "low"
+
+[intent]
+mode = "heuristic"
+
+[budgets]
+steps = 25
+llm_calls = 40
+usd = 0.50
+seconds = 300
+vlm = 3
+
+[gate]
+cancel_window_s = 2.0
+timeout_s = 30.0
+speak = true
+
+[paths]
+data_dir = "jarvis_data"
+
+[router]
+route2_confidence = 0.55
+idle_ms = 300
+idle_timeout_s = 5
+
+[voice]
+wakeword_enabled = false
+wakeword_model = "hey_jarvis"
+wakeword_threshold = 0.50
+hotkey = "<ctrl_r>+<space>"
+stt_engine = "moonshine"
+stt_model = "small-streaming"
+tts_engine = "pocket-tts"
+tts_model = "english_7m_refl_2026-10"
+tts_voice = "alba"
+
+# MCP stdio servers (mcp 2.3.0 client). Unknown tools default to tier 3.
+# Override per tool under [mcp_tiers] as "mcp.<server>.<tool>" = 0..3.
+[mcp_servers]
+# files = { command = "python", args = ["-m", "my_files_mcp"], env = { FILES_ROOT = "C:/Data" } }
+
+[mcp_tiers]
+# "mcp.files.read" = 0

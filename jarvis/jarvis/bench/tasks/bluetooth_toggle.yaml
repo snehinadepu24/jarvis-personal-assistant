@@ -1,0 +1,27 @@
+name: bluetooth_toggle
+goal: "Turn Bluetooth off in Windows Settings"
+max_steps: 25
+ask_reply: "yes"
+setup:
+  state: {bluetooth: "on"}
+script:
+  - thought: Settings covers Bluetooth; open its Bluetooth page via the ms-settings URI.
+    action: {type: open_url, url: "ms-settings:bluetooth", reason: "Settings app owns Bluetooth controls"}
+    expect: "Bluetooth & devices page open"
+  - thought: The Bluetooth switch is on; toggle it off.
+    select: {name_exact: "Bluetooth", control_type: 50002, patterns: ["toggle"]}
+    action: {type: toggle, desired: "off", reason: "goal is to turn Bluetooth off"}
+    expect: "Bluetooth toggle state is off"
+  - thought: Postcondition met.
+    action: {type: done, summary: "Bluetooth is off", reason: "goal reached"}
+    expect: "-"
+check:
+  - kind: element_state
+    select: {name_exact: "Bluetooth", control_type: 50002, patterns: ["toggle"]}
+    field: toggle
+    equals: "off"
+  - kind: mock_state
+    window: settings
+    target: bluetooth-toggle
+    field: state.toggle
+    equals: "off"

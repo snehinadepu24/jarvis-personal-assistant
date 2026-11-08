@@ -1,0 +1,30 @@
+name: notepad_save_as
+goal: "Type a note in Notepad and save it as report.txt using Save As"
+max_steps: 25
+ask_reply: "yes"
+setup: {}
+script:
+  - thought: Focus the Notepad window to type the note.
+    action: {type: open_app, name: "Notepad", reason: "need Notepad focused"}
+    expect: "Notepad window focused"
+  - thought: Type the note into the editor.
+    select: {automation_id: content}
+    action: {type: type, text: "Quarterly numbers look good.", reason: "goal text"}
+    expect: "Editor contains the note text"
+  - thought: No file yet, so open the Save As dialog.
+    action: {type: hotkey, keys: "^+s", reason: "Save As via keyboard"}
+    expect: "Save As dialog opens"
+  - thought: Enter the file name.
+    select: {automation_id: filename}
+    action: {type: type, text: "report.txt", reason: "target file name"}
+    expect: "File name field shows report.txt"
+  - thought: Confirm the save.
+    action: {type: hotkey, keys: "{ENTER}", reason: "press Save"}
+    expect: "File report.txt exists on disk"
+  - thought: File saved.
+    action: {type: done, summary: "Saved report.txt", reason: "postcondition met"}
+    expect: "-"
+check:
+  - kind: file
+    name: report.txt
+    contains: "Quarterly numbers look good."

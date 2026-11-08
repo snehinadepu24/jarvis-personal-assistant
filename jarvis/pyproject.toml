@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jarvis-win"
+version = "1.0.0"
+description = "Project JARVIS for Windows - UIA-first desktop agent (Python 3.14 on Windows, mock backend for development/bench)"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.8",
+    "PyYAML>=6.0",
+    "httpx>=0.27",
+    "google-genai>=2.0",
+    "mcp>=2.3",
+]
+
+[project.optional-dependencies]
+windows = [
+    "comtypes==1.4.16",
+    "pywinauto==0.6.9",
+    "uiautomation==2.0.29",
+    "pywin32",
+    "mss",
+    "Pillow",
+    "sounddevice",
+    "pynput",
+    "pystray",
+    "openwakeword",
+    "msal",
+    "playwright",
+    "faster-whisper==1.2.1",
+    "moonshine-voice==0.1.5",
+    "winrt-Windows.Media.Ocr==3.2.1",
+    "winrt-Windows.Media.Playback==3.2.1",
+    "winrt-Windows.Media.SpeechSynthesis==3.2.1",
+    "winrt-Windows.Foundation==3.2.1",
+    "pyttsx3==2.99",
+]
+
+[project.scripts]
+jarvis = "jarvis.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["jarvis*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["live: makes a real LLM call via the Google AI Studio Gemini API key"]
