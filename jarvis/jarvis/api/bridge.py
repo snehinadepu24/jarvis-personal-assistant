@@ -257,8 +257,29 @@ class AgentBridge:
             ])
         else:
             # Try to use a pre-defined script for common tasks (faster & more reliable)
-            from jarvis.agent.common_scripts import get_script_for_goal
-            script_planner = get_script_for_goal(goal)
+            from jarvis.agent.common_scripts import QUICK_LAUNCH, open_notepad_and_type, open_app_fast
+            
+            script_planner = None
+            goal_lower = goal.lower()
+            
+            # Pattern: "open notepad and write/type X"
+            if "notepad" in goal_lower and ("write" in goal_lower or "type" in goal_lower):
+                for keyword in ["write", "type"]:
+                    if keyword in goal_lower:
+                        text = goal_lower.split(keyword)[-1].strip().rstrip('.')
+                        script_planner = open_notepad_and_type(text)
+                        break
+            
+            # Pattern: "open/launch [app]"
+            if not script_planner:
+                for trigger in ["open", "launch", "start"]:
+                    if trigger in goal_lower:
+                        for app_name, command in QUICK_LAUNCH.items():
+                            if app_name in goal_lower:
+                                script_planner = open_app_fast(app_name)
+                                break
+                        if script_planner:
+                            break
             
             if script_planner:
                 logger.info(f"[Bridge] Using scripted planner for common task pattern")

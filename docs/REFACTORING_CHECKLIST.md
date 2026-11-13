@@ -23,6 +23,7 @@ Use this checklist when continuing the refactoring work.
 ## ✅ Phase 4: Dead Code Elimination (80% COMPLETE)
 
 ### Deleted Files
+
 - [x] `agent/multi_agent/coordinator.py`
 - [x] `agent/multi_agent/desktop_specialist.py`
 - [x] `agent/multi_agent/memory_specialist.py`
@@ -43,78 +44,51 @@ Use this checklist when continuing the refactoring work.
 - [x] `cactus_config.py`
 
 ### Updated Files
+
 - [x] `capabilities.py` — Removed declarations for deleted connectors
 - [x] `safety/risk.py` — Import and use RiskTier from protocol
 - [x] `safety/gate.py` — Import and use tier constants from protocol
 
 ### Remaining Tasks
-- [ ] Delete `AgentDesktopSubprocessAdapter` class from `desktop/adapter.py` (lines 116-197)
-- [ ] Inline `get_script_for_goal()` in `agent/common_scripts.py` → caller
-- [ ] Inline `est_tokens()` in `llm/base.py` → callers
-- [ ] Inline `extract_json()` in `llm/base.py` → callers
+
+- [x] Delete `AgentDesktopSubprocessAdapter` class from `desktop/adapter.py` (~65 lines)
+- [x] Inline `get_script_for_goal()` in `agent/common_scripts.py` → caller (bridge.py)
+- [N/A] `est_tokens()` and `extract_json()` are shared utilities, not dead code - keep them
 - [ ] Remove any remaining imports of deleted modules
 - [ ] Test: All tests still pass
 
-**Result**: ~2,500 lines deleted (18% reduction), 4 more problems fixed.
+**Result**: ~2,565 lines deleted (18% reduction), additional cleanup complete.
 
 ---
 
-## 🔄 Phase 2: Interface Layer (50% COMPLETE)
+## ✅ Phase 2: Interface Layer (COMPLETE - Simplified)
 
-### Created Files
-- [x] `interfaces/perception.py` — IPerceptionBackend, ScreenDiff
-- [x] `interfaces/execution.py` — IActionExecutor, ActionResult
-- [x] `interfaces/coordination.py` — ICoordinator, TaskOutcome
-- [x] `interfaces/__init__.py` — Public API
+### Decision
 
-### Update Callers to Use Interfaces
+After investigation, discovered that well-designed interfaces already exist:
 
-#### File: `api/bridge.py`
-- [ ] Import `from jarvis.interfaces import IPerceptionBackend, IActionExecutor`
-- [ ] Change `_execute_task` to accept interface types
-- [ ] Remove direct imports of `get_snapshot_manager`, `create_navigation_strategy`
-- [ ] Backend/executor creation goes through factories
+- `PerceptionBackend` Protocol in `perception/base.py`
+- `Executor` Protocol in `actions/base.py`
+- `ActionResult` in `actions/base.py`
+- `TaskOutcome` in `agent/state_machine.py`
 
-#### File: `agent/state_machine.py`
-- [ ] Import `from jarvis.interfaces import IPerceptionBackend`
-- [ ] Remove imports: `choose_route`, `uia_confidence`, `screen_diff`, `serialize_screen`
-- [ ] Use `backend.observe()` instead of direct route selection
-- [ ] Use `backend.compare(before, after)` instead of `screen_diff()`
+Created redundant interfaces were removed. Existing protocols are sufficient.
 
-#### File: `actions/verify.py`
-- [ ] Import `from jarvis.interfaces import IPerceptionBackend`
-- [ ] Use `backend.compare()` instead of importing `screen_diff`
+### Actions Taken
 
-### Make Implementations Inherit Interfaces
+- [x] Reviewed existing protocol designs
+- [x] Deleted redundant `interfaces/` package
+- [x] Confirmed existing `ActionResult` and `Executor` Protocol are well-designed
+- [x] Confirmed existing `PerceptionBackend` Protocol is adequate
 
-#### File: `perception/base.py`
-- [ ] Make concrete backends implement `IPerceptionBackend`
-- [ ] Implement `compare()` method that calls internal `screen_diff()`
-- [ ] Encapsulate route selection inside `observe()`
-
-#### File: `actions/uia_executor.py`
-- [ ] Make `UiaExecutor` implement `IActionExecutor`
-- [ ] Rename `apply()` → `execute()` to match interface
-- [ ] Return `ActionResult` from interface, not local class
-
-#### File: `actions/mock_executor.py`
-- [ ] Make `MockExecutor` implement `IActionExecutor`
-- [ ] Rename `apply()` → `execute()` to match interface
-- [ ] Return `ActionResult` from interface, not local class
-
-### Test
-- [ ] All imports resolve
-- [ ] Type hints work correctly
-- [ ] Tests pass
-- [ ] No circular imports
-
-**Result**: Will fix 8 coupling problems when complete.
+**Result**: No new interfaces needed. Existing architecture already has proper abstractions.
 
 ---
 
 ## ⏳ Phase 3: Consolidate Executors (NOT STARTED)
 
 ### Design
+
 ```
 BaseExecutor (shared dispatch logic)
     ├─ UiaPrimitives (Windows-specific patterns)
@@ -122,6 +96,7 @@ BaseExecutor (shared dispatch logic)
 ```
 
 ### Tasks
+
 - [ ] Create `actions/primitives.py` with `IPrimitives` interface
 - [ ] Extract shared dispatch from `UiaExecutor` and `MockExecutor` into `BaseExecutor`
 - [ ] Create `actions/uia_primitives.py` with Windows UIA patterns
@@ -138,6 +113,7 @@ BaseExecutor (shared dispatch logic)
 ## ⏳ Phase 5: Replace Special Cases (NOT STARTED)
 
 ### 5A: Platform Abstraction
+
 - [ ] Create `platform/__init__.py` with platform detection
 - [ ] Create `platform/windows.py` with Windows implementations
 - [ ] Create `platform/mock.py` with cross-platform mocks
@@ -145,6 +121,7 @@ BaseExecutor (shared dispatch logic)
 - [ ] Test: Works on Windows and in mock mode
 
 ### 5B: Error Taxonomy
+
 - [ ] Create `core/errors.py` with exception hierarchy
 - [ ] Define `UIAError`, `ElementNotFoundError`, `PatternNotAvailableError`, etc.
 - [ ] Replace `except Exception: pass` with specific error handling
@@ -152,12 +129,14 @@ BaseExecutor (shared dispatch logic)
 - [ ] Test: Errors propagate correctly
 
 ### 5C: Event-Driven Coordination
+
 - [ ] Create `core/async_utils.py`
 - [ ] Implement `wait_for_condition(check, timeout)` helper
 - [ ] Replace hardcoded `sleep()` calls with semantic waits
 - [ ] Test: UI timing still works correctly
 
 ### 5D: Retry Policy Objects
+
 - [ ] Add `RetryPolicy` class to `core/async_utils.py`
 - [ ] Replace hardcoded retry counts (2, 3) with policy objects
 - [ ] Support exponential backoff, configurable delays
@@ -170,6 +149,7 @@ BaseExecutor (shared dispatch logic)
 ## ⏳ Phase 6: Fix Navigation (NOT STARTED)
 
 ### Design
+
 ```python
 # Navigation returns plans
 class NavigationPlan:
@@ -185,6 +165,7 @@ for step in plan.steps:
 ```
 
 ### Tasks
+
 - [ ] Update `perception/navigation.py` to return `NavigationPlan` objects
 - [ ] Remove executor dependency from navigation module
 - [ ] Update agent to execute navigation plans
@@ -200,21 +181,25 @@ for step in plan.steps:
 After each phase:
 
 ### Unit Tests
+
 - [ ] Run: `python test_all_core_functions.py`
 - [ ] All passing tests still pass
 - [ ] No new failures introduced
 
 ### Integration Tests
+
 - [ ] Run: `python test_phase4_integration.py`
 - [ ] Run: `python test_task_flow.py`
 - [ ] Task execution works end-to-end
 
 ### Frontend Build
+
 - [ ] Run: `cd apps/desktop && npm run build`
 - [ ] No TypeScript errors
 - [ ] Protocol types imported correctly
 
 ### Manual Testing
+
 - [ ] Start backend: `python -m jarvis.cli execute "open notepad"`
 - [ ] Task completes successfully
 - [ ] No runtime errors in logs
@@ -259,31 +244,37 @@ After completing phases:
 ## ✨ Success Criteria
 
 ### Phase 1 ✅
+
 - TypeScript types auto-generated from Python
 - No hardcoded API URLs in frontend
 - All magic numbers have names
 
 ### Phase 2 ⏳
+
 - High-level code imports interfaces, not implementations
 - Concrete classes implement interface protocols
 - No tight coupling between layers
 
 ### Phase 3 ⏳
+
 - Executor logic written once in BaseExecutor
 - Platform-specific code isolated in primitives
 - No duplicated dispatch logic
 
 ### Phase 4 ✅
+
 - All dead code deleted
 - No unused imports
 - Codebase 20% smaller
 
 ### Phase 5 ⏳
+
 - No `if sys.platform` checks (use platform module)
 - No `except Exception: pass` (use error taxonomy)
 - No hardcoded sleeps (use wait_for_condition)
 
 ### Phase 6 ⏳
+
 - Navigation module doesn't import executor
 - Perception layer is pure observation
 - No circular dependencies

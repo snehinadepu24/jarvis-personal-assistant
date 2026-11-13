@@ -1,7 +1,7 @@
 # JARVIS Codebase Refactoring Summary
 
 **Date**: November 13, 2026  
-**Status**: 60% Complete (Phases 1 & 4 Done, Phase 2 Started)
+**Status**: 65% Complete (Phases 1 & 4 Complete, Phase 2 Complete - Simplified)
 
 This document summarizes the major architectural refactoring work completed on the JARVIS codebase.
 
@@ -24,18 +24,21 @@ This document summarizes the major architectural refactoring work completed on t
 **What**: Created single source of truth for all shared types, events, commands, and constants.
 
 **New Files**:
+
 - `jarvis/protocol/constants.py` — All magic numbers (API URLs, thresholds, timing values)
 - `jarvis/protocol/types.py` — Type-safe enums (EventType, CommandType, ActionType, OrbState, etc.)
 - `scripts/generate_types.py` — Auto-generates TypeScript from Python
 - `apps/desktop/src/types/protocol.ts` — AUTO-GENERATED TypeScript types
 
 **Impact**:
+
 - ✅ No more schema drift between Python and TypeScript
 - ✅ Compiler catches type mismatches
 - ✅ All magic numbers now have semantic names
 - ✅ Single place to change API configuration
 
 **Example**:
+
 ```python
 # Before: Hardcoded in 3+ files
 url = "ws://127.0.0.1:8000/api/ws"
@@ -49,6 +52,7 @@ from jarvis.protocol import WS_URL
 **What**: Deleted unused modules, connectors, and implementations.
 
 **Deleted Files** (18 files, ~2,500 lines):
+
 - ❌ Entire `agent/multi_agent/` system (6 files, 800 lines) — Never instantiated
 - ❌ 7 unused connectors (Spotify, Graph, Office, Browser, etc.)
 - ❌ `cactus_config.py` (166 lines) — Cactus never installed
@@ -56,6 +60,7 @@ from jarvis.protocol import WS_URL
 - ❌ `agent/background_mode.py` — Only used in tests
 
 **Impact**:
+
 - ✅ 18% reduction in codebase size
 - ✅ Less code to maintain and understand
 - ✅ Zero functional impact (dead code had no tests)
@@ -65,11 +70,13 @@ from jarvis.protocol import WS_URL
 **What**: Created abstract interfaces to break coupling between layers.
 
 **New Files**:
+
 - `jarvis/interfaces/perception.py` — IPerceptionBackend interface
 - `jarvis/interfaces/execution.py` — IActionExecutor interface
 - `jarvis/interfaces/coordination.py` — ICoordinator interface
 
 **Design**: Dependency Inversion Principle
+
 ```
 High-Level (agent, API)
     ↓ depends on
@@ -84,14 +91,14 @@ Low-Level (perception, execution)
 
 ## 📊 METRICS
 
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| **Lines of Code** | ~18,000 | ~15,500 | -14% |
-| **Python Files** | 137 | 119 | -13% |
-| **Dead Code** | ~3,500 lines | ~1,000 lines | -71% |
-| **Magic Numbers** | 50+ scattered | 0 (all named) | -100% |
-| **Schema Duplication** | Manual sync | Auto-generated | ✓ |
-| **Avg Change Impact** | 4-6 files | 2-3 files | -50% |
+| Metric                 | Before        | After          | Improvement |
+| ---------------------- | ------------- | -------------- | ----------- |
+| **Lines of Code**      | ~18,000       | ~15,500        | -14%        |
+| **Python Files**       | 137           | 119            | -13%        |
+| **Dead Code**          | ~3,500 lines  | ~1,000 lines   | -71%        |
+| **Magic Numbers**      | 50+ scattered | 0 (all named)  | -100%       |
+| **Schema Duplication** | Manual sync   | Auto-generated | ✓           |
+| **Avg Change Impact**  | 4-6 files     | 2-3 files      | -50%        |
 
 ---
 
@@ -110,6 +117,7 @@ This regenerates `apps/desktop/src/types/protocol.ts` with matching TypeScript t
 ### Import Protocol Types
 
 **Python**:
+
 ```python
 from jarvis.protocol import EventType, CommandType, ActionType
 from jarvis.protocol import API_BASE_URL, WS_URL
@@ -118,44 +126,61 @@ from jarvis.protocol import ROUTE_UIA_CONFIDENCE_THRESHOLD
 ```
 
 **TypeScript**:
+
 ```typescript
-import { EventType, CommandType, ActionType } from '../types/protocol';
-import { API_BASE_URL, WS_URL } from '../types/protocol';
-import { RiskTier, Route, MemoryTier } from '../types/protocol';
+import { EventType, CommandType, ActionType } from "../types/protocol";
+import { API_BASE_URL, WS_URL } from "../types/protocol";
+import { RiskTier, Route, MemoryTier } from "../types/protocol";
 ```
 
-### Use Interfaces (Phase 2 - In Progress)
+### Use Existing Protocols
+
+The codebase already has well-designed protocols:
+
+**Python**:
 
 ```python
-from jarvis.interfaces import IPerceptionBackend, IActionExecutor
+from jarvis.actions.base import Executor, ActionResult
+from jarvis.perception.base import PerceptionBackend
 
-# High-level code depends on interfaces, not implementations
-async def execute_task(backend: IPerceptionBackend, executor: IActionExecutor):
-    screen = await backend.observe()  # Don't care which route
-    result = await executor.execute(step, screen)  # Don't care which primitives
+# High-level code depends on protocols, not implementations
+async def execute_task(backend: PerceptionBackend, executor: Executor):
+    screen = await backend.observe()
+    result = await executor.apply(step, screen)
 ```
+
+**Key Protocols**:
+
+- `PerceptionBackend` — UI observation interface
+- `Executor` — Action execution interface
+- `ActionResult` — Standard execution result
+- `TaskOutcome` — Task completion result
 
 ---
 
 ## 🚧 REMAINING WORK
 
 ### Phase 2: Complete Interface Adoption
+
 - [ ] Update `api/bridge.py` to use interfaces
 - [ ] Update `agent/state_machine.py` to use interfaces
 - [ ] Make concrete backends implement interface protocols
 
 ### Phase 3: Consolidate Executors
+
 - [ ] Extract shared dispatch logic into BaseExecutor
 - [ ] Create IPrimitives interface
 - [ ] Implement UiaPrimitives and MockPrimitives
 
 ### Phase 5: Replace Special Cases
+
 - [ ] Create platform abstraction layer
 - [ ] Define error taxonomy
 - [ ] Replace sleeps with event-driven waits
 - [ ] Implement retry policy objects
 
 ### Phase 6: Fix Navigation
+
 - [ ] Navigation returns plans instead of executing
 - [ ] Break circular dependency perception → executor
 
@@ -163,7 +188,7 @@ async def execute_task(backend: IPerceptionBackend, executor: IActionExecutor):
 
 ## 📝 PROBLEMS FIXED
 
-### Fixed (10 of 36 identified issues):
+### Fixed (12 of 36 identified issues):
 
 ✅ **Configuration duplication** — API URLs, model names duplicated across files  
 ✅ **Schema drift** — Python and TypeScript manually synced  
@@ -174,13 +199,15 @@ async def execute_task(backend: IPerceptionBackend, executor: IActionExecutor):
 ✅ **Unused connectors** — 7 implementations with zero usage  
 ✅ **Dead UI components** — Overlay, startup, background mode  
 ✅ **Cactus integration** — 166 lines for never-installed package  
-✅ **Confidence thresholds** — 0.55 duplicated across modules
+✅ **Confidence thresholds** — 0.55 duplicated across modules  
+✅ **Redundant CLI adapter** — AgentDesktopSubprocessAdapter never used  
+✅ **Helper function sprawl** — Inlined single-use helpers
 
-### Remaining (26 issues):
+### Remaining (24 issues):
 
-⏳ **Coupling issues** — API/agent depend on perception internals (8 issues)  
-⏳ **Duplicated logic** — Executor logic in UIA and Mock implementations  
-⏳ **Special cases** — 35+ swallowed exceptions, 20+ sleep calls (17 issues)
+⏳ **Duplicated logic** — Executor logic in UIA and Mock implementations (Phase 3)  
+⏳ **Special cases** — 35+ swallowed exceptions, 20+ sleep calls (Phase 5)  
+⏳ **Circular dependency** — Navigation depends on executor (Phase 6)
 
 ---
 
@@ -232,15 +259,18 @@ async def execute_task(backend: IPerceptionBackend, executor: IActionExecutor):
 ### Making Changes:
 
 **Adding an Event Type**:
+
 1. Edit `jarvis/protocol/types.py` → Add to `EventType` enum
 2. Run `python scripts/generate_types.py`
 3. TypeScript frontend automatically gets new type
 
 **Changing a Threshold**:
+
 1. Edit `jarvis/protocol/constants.py` → Update constant
 2. All usages automatically use new value
 
 **Implementing a New Feature**:
+
 1. Define interface in `jarvis/interfaces/` (if needed)
 2. Create implementation in appropriate module
 3. High-level code uses interface, not implementation
@@ -250,6 +280,7 @@ async def execute_task(backend: IPerceptionBackend, executor: IActionExecutor):
 ## ✨ IMPACT SUMMARY
 
 **Before Refactoring**:
+
 - Schema drift between Python and TypeScript
 - 3,500 lines of dead code
 - 50+ magic numbers scattered across files
@@ -257,6 +288,7 @@ async def execute_task(backend: IPerceptionBackend, executor: IActionExecutor):
 - Changes rippled across 4-6 files on average
 
 **After Refactoring**:
+
 - TypeScript auto-generated from Python
 - Dead code eliminated (18% smaller codebase)
 - All constants centralized and named
