@@ -45,6 +45,9 @@ class AgentContext:
     trace: list = field(default_factory=list)
     tool_registry: object | None = None
     on_event: Callable | None = None
+    snapshot_manager: object | None = None  # NEW: snapshot manager for stale reference detection
+    background_executor: object | None = None  # NEW: background execution mode
+    navigation_strategy: object | None = None  # NEW: complex navigation handler
 
 
 class TaskState:
@@ -163,6 +166,11 @@ async def run_task(goal: str, ctx: AgentContext) -> TaskOutcome:
                 st.prev_screen = st.screen
                 obs = ctx.backend.observe(route)
                 st.screen = await obs if inspect.isawaitable(obs) else obs
+                
+                # Create snapshot if snapshot_manager is available
+                if hasattr(ctx, 'snapshot_manager') and ctx.snapshot_manager and st.screen:
+                    ctx.snapshot_manager.create_snapshot(st.screen)
+                
                 state = "DECIDE"
             elif state == "DECIDE":
                 st.step_no += 1

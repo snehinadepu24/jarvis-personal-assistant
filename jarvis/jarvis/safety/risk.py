@@ -32,7 +32,14 @@ HOTKEY_SAFE_EXACT = {"^a", "^c", "^v", "^f", "{ESC}", "{F5}", "^{HOME}"}
 
 @dataclass
 class Risk:
-    tier: int
+    """
+    Risk assessment result using protocol-defined tiers.
+    
+    tier: RiskTier enum value (SAFE=0, LOW=1, MEDIUM=2, HIGH=3, CRITICAL=4)
+    reason: Explanation of risk classification
+    denied: If True, action should be blocked
+    """
+    tier: int  # Should be RiskTier value
     reason: str
     denied: bool = False
     target_key: str = ""
@@ -58,6 +65,16 @@ def _element_risk(action_type: str, elem, window_title: str) -> Risk:
 
 
 def classify(step: Step, screen: Screen) -> Risk:
+    """
+    Classify action risk tier using protocol-defined RiskTier enum.
+    
+    Returns Risk with tier value from RiskTier:
+    - RiskTier.SAFE (0): No confirmation needed
+    - RiskTier.LOW (1): Auto-approve if policy allows  
+    - RiskTier.MEDIUM (2): Notify user
+    - RiskTier.HIGH (3): Explicit confirmation required
+    - RiskTier.CRITICAL (4): Strong confirmation or deny
+    """
     a = step.action
     t = a.type
     win_title = screen.window_title
@@ -66,9 +83,9 @@ def classify(step: Step, screen: Screen) -> Risk:
         return Risk(4, f"deny-listed window: {denied}", denied=True, window=win_title)
 
     if t in ("done", "fail", "wait", "ask_user"):
-        return Risk(0, f"{t}")
+        return Risk(RiskTier.SAFE, f"{t}")
     if t == "scroll":
-        return Risk(1, "scroll is reversible")
+        return Risk(RiskTier.LOW, "scroll is reversible")
 
     element_types = {"click", "double_click", "right_click", "type", "clear", "select_item", "toggle", "expand", "collapse"}
     if t in element_types:

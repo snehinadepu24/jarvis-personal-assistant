@@ -1,10 +1,12 @@
-import { ApprovalRequest, OrbState, TaskProgress, TaskStatus } from '../types/jarvis';
+import { ApprovalRequest, TaskProgress, TaskStatus } from '../types/jarvis';
+import { WS_URL, EventType, OrbState } from '../types/protocol';
 
 export type EventCallback = (data: any) => void;
 
 class JarvisWebSocketService {
   private ws: WebSocket | null = null;
-  private url: string = 'ws://127.0.0.1:8000/api/ws';
+  private pendingCommands: Array<() => void> = [];
+  private url: string = WS_URL;
   private listeners: Map<string, Set<EventCallback>> = new Map();
   private isConnecting: boolean = false;
   private reconnectTimer: any = null;
@@ -19,12 +21,27 @@ class JarvisWebSocketService {
     }
     this.isConnecting = true;
     try {
+      console.log('[JARVIS WS] Connecting to', this.url);
       this.ws = new WebSocket(this.url);
 
       this.ws.onopen = () => {
+        console.log('[JARVIS WS] Connection opened');
         this.isConnecting = false;
         console.log('[JARVIS WS] Connected to Python Engine backend.');
         this.emit('connection.open', { connected: true });
+        this.flushPending();
+      };
+
+      this.ws.onclose = (event) => {
+        console.warn('[JARVIS WS] Connection closed', event);
+        this.isConnecting = false;
+        this.emit('connection.close', { connected: false });
+        this.scheduleReconnect();
+      };
+
+      this.ws.onerror = (err) => {
+        console.warn('[JARVIS WS] Connection error:', err);
+        this.ws?.close();
       };
 
       this.ws.onmessage = (event) => {
@@ -36,17 +53,6 @@ class JarvisWebSocketService {
         } catch (e) {
           console.error('[JARVIS WS] Parse error:', e);
         }
-      };
-
-      this.ws.onclose = () => {
-        this.isConnecting = false;
-        this.emit('connection.close', { connected: false });
-        this.scheduleReconnect();
-      };
-
-      this.ws.onerror = (err) => {
-        console.warn('[JARVIS WS] Connection error:', err);
-        this.ws?.close();
       };
     } catch (e) {
       this.isConnecting = false;
@@ -60,6 +66,13 @@ class JarvisWebSocketService {
       this.reconnectTimer = null;
       this.connect();
     }, 2000);
+  }
+
+  private flushPending(): void {
+    while (this.pendingCommands.length) {
+      const fn = this.pendingCommands.shift();
+      if (fn) fn();
+    }
   }
 
   public on(event: string, callback: EventCallback): () => void {
@@ -95,7 +108,14 @@ class JarvisWebSocketService {
   }
 
   public submitTask(goal: string, plannerMode: string = 'auto', engine: string = 'state_machine'): void {
-    this.sendCommand('task.submit', { goal, planner_mode: plannerMode, engine });
+    console.log('[JARVIS WS] submitTask →', { goal, plannerMode, engine });
+    const commandPayload = { command: 'task.submit', data: { goal, planner_mode: plannerMode, engine } };
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(commandPayload));
+    } else {
+      console.warn('[JARVIS WS] Socket not open, queuing submitTask');
+      this.pendingCommands.push(() => this.ws?.send(JSON.stringify(commandPayload)));
+    }
   }
 
   public cancelTask(taskId?: string): void {
@@ -113,4 +133,3 @@ class JarvisWebSocketService {
 }
 
 export const wsService = new JarvisWebSocketService();
-

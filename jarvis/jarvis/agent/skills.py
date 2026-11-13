@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from typing import Optional
+
 from jarvis.core.schema import Rect, Screen, Step
 from jarvis.core.skills_format import SkillModel, SkillStep, resolve_element
 from jarvis.safety.risk import classify
@@ -29,7 +31,7 @@ class ScriptedPlanner:
     async def intent(self, goal: str) -> dict:
         return {"verb": "scripted", "goal": goal}
 
-    async def plan(self, goal, progress, step_no, max_steps, last_action, last_result, screen: Screen, diff_line, window_line, route) -> tuple[Step, Usage]:
+    async def plan(self, goal, progress, step_no, max_steps, last_action, last_result, screen: Screen, diff_line, window_line, route, screenshot: Optional[bytes] = None) -> tuple[Step, Usage]:
         if self._i >= len(self.entries):
             raise ScriptError("script exhausted; task did not reach done")
         e = self.entries[self._i]

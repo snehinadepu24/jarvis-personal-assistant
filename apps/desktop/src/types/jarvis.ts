@@ -1,11 +1,6 @@
-export type OrbState =
-  | 'idle'
-  | 'listening'
-  | 'thinking'
-  | 'executing'
-  | 'speaking'
-  | 'error'
-  | 'waiting_approval';
+// Re-export from protocol for backwards compatibility
+import { OrbState } from './protocol';
+export { OrbState };
 
 export interface TaskProgress {
   step: number;

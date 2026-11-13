@@ -26,6 +26,12 @@ import os
 import io
 import json
 import logging
+from backend.logging_config import configure_logging
+
+# Initialise logging as early as possible
+configure_logging()
+
+logger = logging.getLogger(__name__)
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
@@ -290,36 +296,51 @@ async def api_websocket(websocket: WebSocket):
     bridge = AgentBridge.get_instance()
     await websocket.accept()
     await bridge.register_websocket(websocket)
+    logger.info("[WS] Client registered and connection accepted")
     try:
         while True:
-            text = await websocket.receive_text()
-            try:
-                msg = json.loads(text)
-                cmd = msg.get("command")
-                data = msg.get("data", {})
-                if cmd == "task.submit":
-                    task_id = await bridge.submit_task(
-                        goal=data.get("goal", ""),
-                        planner_mode=data.get("planner_mode", "auto"),
-                        engine=data.get("engine", "state_machine"),
-                    )
-                    await bridge.send_to_client(websocket, EventType.TASK_ACCEPTED, {"task_id": task_id, "goal": data.get("goal")}, task_id=task_id)
-                elif cmd == "task.cancel":
-                    t_id = data.get("task_id") or bridge.current_task_id
-                    if t_id:
-                        await bridge.cancel_task(t_id)
-                elif cmd == "approval.respond":
-                    await bridge.respond_approval(
-                        task_id=data.get("task_id", ""),
-                        nonce=data.get("nonce", ""),
-                        approved=bool(data.get("approved", False)),
-                        reason=data.get("reason", ""),
-                    )
-                elif cmd == "system.ping":
-                    await bridge.send_to_client(websocket, EventType.SYSTEM_PONG, {"status": "pong"})
-            except Exception as ex:
-                logger.error(f"Error handling WS message: {ex}")
+            # Receive any kind of frame (text, binary, etc.)
+            data = await websocket.receive()
+            logger.info(f"[WS] Received raw data: {data}")
+            if "text" in data:
+                text = data["text"]
+                logger.info(f"[WS] Received text payload: {text}")
+                try:
+                    msg = json.loads(text)
+                    cmd = msg.get("command")
+                    payload = msg.get("data", {})
+                    if cmd == "task.submit":
+                        task_id = await bridge.submit_task(
+                            goal=payload.get("goal", ""),
+                            planner_mode=payload.get("planner_mode", "auto"),
+                            engine=payload.get("engine", "state_machine"),
+                        )
+                        await bridge.send_to_client(
+                            websocket,
+                            EventType.TASK_ACCEPTED,
+                            {"task_id": task_id, "goal": payload.get("goal")},
+                            task_id=task_id,
+                        )
+                    elif cmd == "task.cancel":
+                        t_id = payload.get("task_id") or bridge.current_task_id
+                        if t_id:
+                            await bridge.cancel_task(t_id)
+                    elif cmd == "approval.respond":
+                        await bridge.respond_approval(
+                            task_id=payload.get("task_id", ""),
+                            nonce=payload.get("nonce", ""),
+                            approved=bool(payload.get("approved", False)),
+                            reason=payload.get("reason", ""),
+                        )
+                    elif cmd == "system.ping":
+                        await bridge.send_to_client(websocket, EventType.SYSTEM_PONG, {"status": "pong"})
+                except Exception as ex:
+                    logger.error(f"Error handling WS message: {ex}")
+            else:
+                # Non‑text frames are ignored for now
+                logger.debug("[WS] Non‑text frame received; ignoring")
     except WebSocketDisconnect:
+        logger.info("[WS] Client disconnected")
         bridge.unregister_websocket(websocket)
     except Exception as e:
         logger.error(f"WebSocket connection error: {e}")

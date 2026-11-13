@@ -48,9 +48,15 @@ class Config:
             Path.cwd() / ".env"
         ])
         cfg = cls()
+        
+        # Try to load optimization config first (higher priority)
+        optimization_path = root / "jarvis_optimization.toml"
         toml_path = root / "jarvis.toml"
-        if toml_path.exists():
-            data = tomllib.loads(toml_path.read_text(encoding="utf-8"))
+        
+        config_file = optimization_path if optimization_path.exists() else toml_path
+        
+        if config_file.exists():
+            data = tomllib.loads(config_file.read_text(encoding="utf-8"))
             planner = data.get("planner", {})
             cfg.planner_provider = os.environ.get("PLANNER_PROVIDER") or planner.get("provider", cfg.planner_provider)
             cfg.planner_model = os.environ.get("GEMINI_MODEL") or planner.get("model", cfg.planner_model)

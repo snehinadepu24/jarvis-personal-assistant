@@ -5,6 +5,8 @@ import sys
 from pathlib import Path
 
 
+from jarvis.protocol import RiskTier
+
 def get_system_capabilities() -> dict:
     is_win = sys.platform == "win32"
     has_pywin32 = False

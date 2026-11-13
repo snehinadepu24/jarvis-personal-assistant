@@ -4,6 +4,17 @@ use tauri::{
     AppHandle, Manager,
 };
 
+// Single implementation of close_orb (removes duplicate)
+#[tauri::command]
+fn close_orb(app: AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("orb") {
+        // Hide first, then close to ensure resources are released
+        let _ = window.hide();
+        window.close().map_err(|e| e.to_string())?
+    }
+    Ok(())
+}
+
 #[tauri::command]
 fn toggle_orb(app: AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("orb") {
@@ -17,6 +28,7 @@ fn toggle_orb(app: AppHandle) -> Result<(), String> {
     }
     Ok(())
 }
+
 
 #[tauri::command]
 fn toggle_dashboard(app: AppHandle) -> Result<(), String> {
@@ -68,7 +80,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![toggle_orb, toggle_dashboard])
+        .invoke_handler(tauri::generate_handler![toggle_orb, toggle_dashboard, close_orb])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

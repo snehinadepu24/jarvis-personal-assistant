@@ -54,12 +54,24 @@ class GeminiLLM:
                 self._n += 1
                 t0 = time.monotonic()
                 try:
+                    logger.debug("Attempt %s for model %s (candidate %s)", attempt + 1, model_candidate, model_candidate)
                     reply = await self._call_gemini_api(
                         model=model_candidate,
                         system=system,
                         prompt=user_text,
                         image_bytes=image_bytes,
                     )
+                    logger.debug("Gemini API returned reply (truncated): %s", reply[:200].replace('\n', ' ') + "…")
+                except Exception as e:
+                    last_err = e
+                    err_str = str(e)
+                    # If model is 503 (high demand) or 429 (rate limit), break inner loop to try fallback model
+                    if "503" in err_str or "UNAVAILABLE" in err_str or "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                        logger.warning("Model %s hit demand/quota limit (%s); trying fallback model...", model_candidate, e)
+                        await asyncio.sleep(0.5)
+                        break
+                    await asyncio.sleep(0.5)
+                    continue
                 except Exception as e:
                     last_err = e
                     err_str = str(e)

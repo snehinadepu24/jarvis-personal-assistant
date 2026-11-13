@@ -1,0 +1,51 @@
+# JARVIS Optimization Configuration
+
+[planner]
+# Use faster models for simple tasks
+provider = "gemini"
+model = "gemini-2.0-flash-exp"  # Fastest Gemini model
+thinking = "low"  # Low latency thinking mode
+
+# Enable smart script detection
+auto_script_detection = true
+
+[router]
+# Higher confidence threshold = fewer fallback attempts
+route2_confidence = 0.65  # Increase from 0.55 for faster decisions
+
+# Faster idle detection
+idle_ms = 200  # Decrease from 300 for quicker response
+idle_timeout_s = 3  # Decrease from 5 for faster timeouts
+
+[budgets]
+# Reasonable limits for faster failure detection
+steps = 20  # Reduce from 25
+llm_calls = 30  # Reduce from 40
+usd = 0.20  # Reduce cost budget
+seconds = 120  # 2 minutes max (faster timeout)
+vlm = 2  # Reduce VLM calls
+
+[gate]
+# Faster approval flow
+cancel_window_s = 1.5  # Reduce from 2.0
+timeout_s = 20  # Reduce from 30
+speak = false  # Disable TTS for speed
+
+[optimization]
+# Cache common UI patterns
+cache_ui_snapshots = true
+snapshot_cache_ttl = 2  # seconds
+
+# Parallel execution
+parallel_observations = true
+
+# Skip unnecessary verification for low-risk actions
+fast_verify_mode = true
+
+[scripted_tasks]
+# Enable auto-detection of these patterns
+enable_notepad = true
+enable_calculator = true
+enable_settings = true
+enable_browser = true
+enable_file_operations = true

@@ -118,9 +118,18 @@ class AgentBridge:
 
         # Launch runner in background
         loop = asyncio.get_running_loop()
+        # Create a background task that runs the actual execution coroutine
         task_future = loop.create_task(
-            self._execute_task(active, planner_mode=planner_mode, engine=engine, arm=arm, seed=seed, task_name=task_name or task_id)
+            self._execute_task(
+                active,
+                planner_mode=planner_mode,
+                engine=engine,
+                arm=arm,
+                seed=seed,
+                task_name=task_name,
+            )
         )
+        logger.info(f"[Bridge] Starting task execution: {task_id} goal={goal}")
         active.task_future = task_future
         return task_id
 
@@ -144,6 +153,11 @@ class AgentBridge:
 
         # Check backend
         from jarvis.bench.runner import _use_mock
+        
+        # Initialize shared components
+        snapshot_manager = None
+        navigation_strategy = None
+        
         if _use_mock(cfg):
             from jarvis.perception.mock_backend import SimulatedDesktop
             from jarvis.actions.mock_executor import MockExecutor
@@ -153,8 +167,19 @@ class AgentBridge:
         else:
             from jarvis.perception.base import build_backend
             from jarvis.actions.uia_executor import UiaExecutor
+            from jarvis.perception.snapshot import get_snapshot_manager
+            from jarvis.perception.navigation import create_navigation_strategy
+            
             backend = build_backend(cfg)
-            executor = UiaExecutor(backend, FilesConnector(fs_root))
+            
+            # Initialize snapshot manager for stale reference detection
+            snapshot_manager = get_snapshot_manager()
+            
+            # Create executor with snapshot manager
+            executor = UiaExecutor(backend, FilesConnector(fs_root), snapshot_manager=snapshot_manager)
+            
+            # Create navigation strategy for complex UI navigation
+            navigation_strategy = create_navigation_strategy(backend, executor)
 
         audit_path = cfg.data_dir / f"audit_{task_id}.db"
         audit = Audit(audit_path)
@@ -220,7 +245,8 @@ class AgentBridge:
             await self.broadcast_event(ev_type, ev_data, task_id=task_id)
 
         from jarvis.agent.state_machine import AgentContext, run_task
-        from jarvis.llm.router import RouterPlanner
+        from jarvis.llm.router import LlmRouter
+        from jarvis.llm.gemini import GeminiLLM
 
         if planner_mode == "scripted":
             from jarvis.agent.skills import ScriptEntry, ScriptedPlanner
@@ -230,7 +256,16 @@ class AgentBridge:
                 ScriptEntry(thought="Complete task", action={"type": "done", "summary": "Opened Notepad and wrote greeting", "reason": "complete"}, expect="-"),
             ])
         else:
-            planner = RouterPlanner(cfg)
+            # Try to use a pre-defined script for common tasks (faster & more reliable)
+            from jarvis.agent.common_scripts import get_script_for_goal
+            script_planner = get_script_for_goal(goal)
+            
+            if script_planner:
+                logger.info(f"[Bridge] Using scripted planner for common task pattern")
+                planner = script_planner
+            else:
+                # Fall back to AI planning for complex/unknown tasks
+                planner = LlmRouter(GeminiLLM(cfg.planner_model), thinking=cfg.thinking)
 
         ctx = AgentContext(
             llm=planner,
@@ -241,6 +276,8 @@ class AgentBridge:
             budgets=cfg.budgets,
             task_name=task_name,
             on_event=event_callback,
+            snapshot_manager=snapshot_manager,
+            navigation_strategy=navigation_strategy,
         )
         active.ctx = ctx
 

@@ -1,4 +1,6 @@
-const API_BASE = 'http://127.0.0.1:8000/api';
+import { API_BASE_URL } from '../types/protocol';
+
+const API_BASE = API_BASE_URL;
 
 export async function fetchCapabilities() {
   const res = await fetch(`${API_BASE}/capabilities`);

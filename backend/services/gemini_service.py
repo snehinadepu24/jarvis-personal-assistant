@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import os
+import logging
 from typing import Any
 
 import httpx
+
+logger = logging.getLogger("backend.services.gemini_service")
 
 
 class GeminiServiceError(RuntimeError):

@@ -297,15 +297,25 @@ def _resolve_selector(worker, hwnd: int, selector: list[dict]):
 class UiaExecutor:
     name = "uia-executor"
 
-    def __init__(self, backend, files_connector=None):
+    def __init__(self, backend, files_connector=None, snapshot_manager=None, navigation_strategy=None):
         self.backend = backend
         self.thread = backend.thread
         self.files = files_connector
+        self.snapshot_manager = snapshot_manager
+        self.navigation_strategy = navigation_strategy
 
     async def apply(self, step, screen=None):
         a = step.action
         if screen is None:
             screen = await self.backend.observe()
+        
+        # Validate mark if using snapshot manager
+        if self.snapshot_manager and hasattr(a, 'mark') and a.mark > 0:
+            is_valid, reason = self.snapshot_manager.validate_mark(a.mark, screen)
+            if not is_valid:
+                # Snapshot is stale, refresh required
+                return ActionResult(False, f"stale reference ({reason}), needs refresh")
+        
         if isinstance(a, (Done, Fail, AskUser, Wait)):
             return ActionResult(True, a.type)
         if isinstance(a, Hotkey):
@@ -375,6 +385,22 @@ class UiaExecutor:
             if a.tool.startswith("files.") and self.files is not None:
                 return self.files.handle(a.tool, a.args)
             return ActionResult(False, f"connector {a.tool} not registered")
+
+        # Special case: typing without a mark (focused window typing)
+        if a.type == "type" and (not hasattr(a, 'mark') or a.mark == 0):
+            from pywinauto.keyboard import send_keys
+            try:
+                # Type directly into focused window
+                text = a.text
+                if len(text) < 200:
+                    send_keys("".join("{%s}" % c if c in "+^%~(){}[]" else c for c in text), with_spaces=True, pause=0.005)
+                else:
+                    clipboard_paste(text)
+                if hasattr(a, 'submit') and a.submit:
+                    send_keys("{ENTER}")
+                return ActionResult(True, f"typed into focused window: {text[:50]}...")
+            except Exception as e:
+                return ActionResult(False, f"focused window typing failed: {e}")
 
         el = screen.by_mark(a.mark)
         if el is None:

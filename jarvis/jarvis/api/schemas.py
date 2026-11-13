@@ -1,52 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 from pydantic import BaseModel, Field
 
-
-class CommandType(str, Enum):
-    SYSTEM_INITIALIZE = "system.initialize"
-    SYSTEM_SHUTDOWN = "system.shutdown"
-    SYSTEM_PING = "system.ping"
-    
-    TASK_SUBMIT = "task.submit"
-    TASK_PAUSE = "task.pause"
-    TASK_RESUME = "task.resume"
-    TASK_CANCEL = "task.cancel"
-    TASK_STATUS = "task.status"
-    
-    APPROVAL_RESPOND = "approval.respond"
-    
-    VOICE_START = "voice.start"
-    VOICE_STOP = "voice.stop"
-    VOICE_CONFIG = "voice.config"
-
-
-class EventType(str, Enum):
-    SYSTEM_READY = "system.ready"
-    SYSTEM_ERROR = "system.error"
-    SYSTEM_PONG = "system.pong"
-    
-    TASK_ACCEPTED = "task.accepted"
-    TASK_STARTED = "task.started"
-    TASK_PLAN_CREATED = "task.plan_created"
-    TASK_PROGRESS = "task.progress"
-    TASK_COMPLETED = "task.completed"
-    TASK_FAILED = "task.failed"
-    TASK_PAUSED = "task.paused"
-    TASK_CANCELLED = "task.cancelled"
-    
-    ACTION_STARTED = "action.started"
-    ACTION_APPROVAL_REQUIRED = "action.approval_required"
-    ACTION_COMPLETED = "action.completed"
-    ACTION_FAILED = "action.failed"
-    
-    VOICE_LISTENING = "voice.listening"
-    VOICE_TRANSCRIPTION = "voice.transcription"
-    VOICE_SPEAKING = "voice.speaking"
-    VOICE_STATE = "voice.state"
+# Import protocol types - single source of truth
+from jarvis.protocol import EventType, CommandType
 
 
 class Envelope(BaseModel):
