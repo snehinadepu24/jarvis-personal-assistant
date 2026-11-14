@@ -107,9 +107,17 @@ class JarvisWebSocketService {
     }
   }
 
-  public submitTask(goal: string, plannerMode: string = 'auto', engine: string = 'state_machine'): void {
-    console.log('[JARVIS WS] submitTask →', { goal, plannerMode, engine });
-    const commandPayload = { command: 'task.submit', data: { goal, planner_mode: plannerMode, engine } };
+  public submitTask(goal: string, plannerMode: string = 'auto', engine: string = 'state_machine', backgroundMode: boolean = false): void {
+    console.log('[JARVIS WS] submitTask →', { goal, plannerMode, engine, backgroundMode });
+    const commandPayload = { 
+      command: 'task.submit', 
+      data: { 
+        goal, 
+        planner_mode: plannerMode, 
+        engine,
+        background_mode: backgroundMode 
+      } 
+    };
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(commandPayload));
     } else {

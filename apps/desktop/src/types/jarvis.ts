@@ -1,6 +1,6 @@
 // Re-export from protocol for backwards compatibility
 import { OrbState } from './protocol';
-export { OrbState };
+export type { OrbState };
 
 export interface TaskProgress {
   step: number;

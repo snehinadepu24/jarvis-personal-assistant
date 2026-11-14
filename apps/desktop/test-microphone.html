@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Microphone Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            margin: 10px;
+            cursor: pointer;
+            border-radius: 8px;
+            border: none;
+        }
+        #startBtn { background: #10b981; color: white; }
+        #stopBtn { background: #ef4444; color: white; }
+        #log {
+            background: #000;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            height: 400px;
+            overflow-y: auto;
+        }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+        .info { color: #3b82f6; }
+        #audioLevel {
+            width: 100%;
+            height: 50px;
+            background: #333;
+            margin: 20px 0;
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        #audioLevelBar {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #3b82f6);
+            width: 0%;
+            transition: width 0.1s;
+        }
+        #audioLevelText {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎤 Microphone Test</h1>
+    <p>This will test if your microphone is working and audio is being captured.</p>
+    
+    <div>
+        <button id="startBtn">Start Recording</button>
+        <button id="stopBtn" disabled>Stop Recording</button>
+    </div>
+
+    <div id="audioLevel">
+        <div id="audioLevelBar"></div>
+        <div id="audioLevelText">0%</div>
+    </div>
+
+    <div id="log"></div>
+
+    <script>
+        const log = document.getElementById('log');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const audioLevelBar = document.getElementById('audioLevelBar');
+        const audioLevelText = document.getElementById('audioLevelText');
+
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let stream = null;
+        let audioContext = null;
+        let analyser = null;
+        let animationId = null;
+
+        function addLog(message, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+            log.innerHTML += `<div class="${className}">[${time}] ${message}</div>`;
+            log.scrollTop = log.scrollHeight;
+            console.log(message);
+        }
+
+        function updateAudioLevel() {
+            if (!analyser) return;
+            
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(dataArray);
+            const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+            const normalizedLevel = Math.min(average / 128, 1);
+            const percentage = Math.round(normalizedLevel * 100);
+            
+            audioLevelBar.style.width = percentage + '%';
+            audioLevelText.textContent = percentage + '%';
+            
+            if (percentage > 10) {
+                addLog(`Audio level: ${percentage}%`, 'success');
+            }
+            
+            animationId = requestAnimationFrame(updateAudioLevel);
+        }
+
+        startBtn.addEventListener('click', async () => {
+            try {
+                addLog('Requesting microphone access...', 'info');
+                
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+                
+                addLog('✓ Microphone access granted!', 'success');
+                addLog(`Audio tracks: ${stream.getAudioTracks().length}`, 'info');
+                
+                stream.getAudioTracks().forEach(track => {
+                    addLog(`Track: ${track.label}`, 'info');
+                    addLog(`Enabled: ${track.enabled}`, 'info');
+                    addLog(`Muted: ${track.muted}`, 'info');
+                    addLog(`Settings: ${JSON.stringify(track.getSettings())}`, 'info');
+                });
+
+                // Setup audio visualization
+                audioContext = new AudioContext();
+                const source = audioContext.createMediaStreamSource(stream);
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                source.connect(analyser);
+                updateAudioLevel();
+
+                // Setup recorder
+                const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 
+                                 MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '';
+                
+                addLog(`Using MIME type: ${mimeType || 'default'}`, 'info');
+                
+                mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    addLog(`Audio chunk received: ${event.data.size} bytes`, 'success');
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    cancelAnimationFrame(animationId);
+                    audioContext.close();
+                    
+                    addLog('Recording stopped', 'info');
+                    addLog(`Total chunks: ${audioChunks.length}`, 'info');
+                    
+                    if (audioChunks.length === 0) {
+                        addLog('ERROR: No audio data captured!', 'error');
+                        return;
+                    }
+
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    addLog(`Audio blob created: ${audioBlob.size} bytes`, 'success');
+                    addLog(`Blob type: ${audioBlob.type}`, 'info');
+                    
+                    // Convert to WAV and show info
+                    try {
+                        const arrayBuffer = await audioBlob.arrayBuffer();
+                        const audioContext = new AudioContext();
+                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        
+                        addLog(`✓ Audio decoded successfully!`, 'success');
+                        addLog(`Duration: ${audioBuffer.duration.toFixed(2)} seconds`, 'success');
+                        addLog(`Sample rate: ${audioBuffer.sampleRate} Hz`, 'info');
+                        addLog(`Channels: ${audioBuffer.numberOfChannels}`, 'info');
+                        addLog(`Length: ${audioBuffer.length} samples`, 'info');
+                        
+                        // Check if there's actual audio data
+                        const channelData = audioBuffer.getChannelData(0);
+                        let maxAmplitude = 0;
+                        for (let i = 0; i < channelData.length; i++) {
+                            maxAmplitude = Math.max(maxAmplitude, Math.abs(channelData[i]));
+                        }
+                        addLog(`Max amplitude: ${maxAmplitude.toFixed(4)} (0 = silence, 1 = max)`, maxAmplitude > 0.01 ? 'success' : 'error');
+                        
+                        if (maxAmplitude < 0.01) {
+                            addLog('⚠️ WARNING: Audio appears to be silent!', 'error');
+                        }
+                        
+                    } catch (error) {
+                        addLog(`ERROR decoding audio: ${error.message}`, 'error');
+                    }
+                };
+
+                mediaRecorder.start(100); // Request data every 100ms
+                addLog('✓ Recording started with 100ms timeslice! Speak now...', 'success');
+                
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+
+            } catch (error) {
+                addLog(`ERROR: ${error.message}`, 'error');
+                addLog(`Error name: ${error.name}`, 'error');
+                if (error.name === 'NotAllowedError') {
+                    addLog('Microphone permission denied. Please allow microphone access.', 'error');
+                }
+            }
+        });
+
+        stopBtn.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                stream.getTracks().forEach(track => track.stop());
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                addLog('Stopping recording...', 'info');
+            }
+        });
+    </script>
+</body>
+</html>

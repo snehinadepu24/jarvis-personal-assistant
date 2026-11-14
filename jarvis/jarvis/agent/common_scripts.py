@@ -78,9 +78,63 @@ QUICK_LAUNCH = {
     "snipping tool": "snippingtool",
 }
 
+def toggle_bluetooth() -> ScriptedPlanner:
+    """Fast scripted Bluetooth toggle using Settings search."""
+    return ScriptedPlanner([
+        ScriptEntry(
+            thought="Open Windows Settings",
+            action={"type": "hotkey", "keys": "win+i", "reason": "open settings"},
+            expect="Settings open"
+        ),
+        ScriptEntry(
+            thought="Wait for Settings to load",
+            action={"type": "wait", "seconds": 1.0, "reason": "settings load"},
+            expect="ready"
+        ),
+        ScriptEntry(
+            thought="Type 'bluetooth' to search",
+            action={"type": "type", "text": "bluetooth", "reason": "search", "submit": False},
+            expect="search results"
+        ),
+        ScriptEntry(
+            thought="Press Enter to open Bluetooth settings",
+            action={"type": "hotkey", "keys": "{ENTER}", "reason": "open bluetooth page"},
+            expect="bluetooth page"
+        ),
+        ScriptEntry(
+            thought="Wait for page to load",
+            action={"type": "wait", "seconds": 1.5, "reason": "page load"},
+            expect="page ready"
+        ),
+        ScriptEntry(
+            thought="Press Tab to reach Bluetooth toggle",
+            action={"type": "hotkey", "keys": "{TAB}", "reason": "focus toggle"},
+            expect="toggle focused"
+        ),
+        ScriptEntry(
+            thought="Toggle Bluetooth with Space",
+            action={"type": "hotkey", "keys": "{SPACE}", "reason": "toggle"},
+            expect="bluetooth toggled"
+        ),
+        ScriptEntry(
+            thought="Close Settings",
+            action={"type": "hotkey", "keys": "!{F4}", "reason": "close window"},
+            expect="closed"
+        ),
+        ScriptEntry(
+            thought="Task completed",
+            action={"type": "done", "summary": "Toggled Bluetooth in Settings", "reason": "complete"},
+            expect="-"
+        ),
+    ])
+
 def get_script_for_goal(goal: str) -> ScriptedPlanner | None:
     """Match goal to a pre-defined script for faster execution."""
     goal_lower = goal.lower()
+    
+    # Pattern: Bluetooth toggle
+    if "bluetooth" in goal_lower and ("toggle" in goal_lower or "turn" in goal_lower or "enable" in goal_lower or "disable" in goal_lower):
+        return toggle_bluetooth()
     
     # Pattern: "open notepad and write/type X"
     if "notepad" in goal_lower and ("write" in goal_lower or "type" in goal_lower):

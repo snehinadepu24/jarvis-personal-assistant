@@ -103,6 +103,7 @@ def _route_str(route: int) -> str:
 
 
 async def run_task(goal: str, ctx: AgentContext) -> TaskOutcome:
+    print(f"[JARVIS STATE MACHINE] Starting run_task for goal: {goal}", flush=True)
     st = TaskState(goal)
     state = "INTERPRET"
 
@@ -129,6 +130,7 @@ async def run_task(goal: str, ctx: AgentContext) -> TaskOutcome:
         return out
 
     await _notify("task.started", {"goal": goal, "task_name": ctx.task_name})
+    print(f"[JARVIS STATE MACHINE] Task started event sent, entering main loop", flush=True)
 
     while not ctx.cancel.is_set():
         try:
@@ -142,7 +144,9 @@ async def run_task(goal: str, ctx: AgentContext) -> TaskOutcome:
             return finish("failed", error=f"budget: {e}")
 
         try:
+            print(f"[JARVIS STATE MACHINE] State: {state}, Step: {st.step_no}", flush=True)
             if state == "INTERPRET":
+                print(f"[JARVIS STATE MACHINE] Calling LLM.intent()...", flush=True)
                 st.intent = await ctx.llm.intent(goal)
                 print(f"[JARVIS INTENT] {st.intent}", flush=True)
                 state = "ROUTE"
@@ -204,6 +208,7 @@ async def run_task(goal: str, ctx: AgentContext) -> TaskOutcome:
                 })
                 state = "GATE"
             elif state == "GATE":
+                print(f"[JARVIS GATE] Entering GATE for action type: {st.pending.action.type}, screen: {'present' if st.screen else 'None'}", flush=True)
                 decision = await ctx.gate.approve(st.pending, st.screen)
                 if decision.tier >= 3:
                     st.confirmations_shown += 1
@@ -215,10 +220,11 @@ async def run_task(goal: str, ctx: AgentContext) -> TaskOutcome:
                 ctx.audit.log(
                     task=ctx.task_name, step=st.step_no, route=_route_str(st.route), tier=decision.tier,
                     action=st.pending.action.type, target_key=decision.action_hash or "",
-                    window=st.screen.window_title, approved_by="user" if decision.approved and decision.tier >= 3 else ("auto" if decision.approved else "denied"),
+                    window=st.screen.window_title if st.screen else "", approved_by="user" if decision.approved and decision.tier >= 3 else ("auto" if decision.approved else "denied"),
                     result="approved" if decision.approved else "denied",
                 )
                 if decision.approved:
+                    print(f"[JARVIS GATE] Action approved, transitioning to ACT (action type: {st.pending.action.type})", flush=True)
                     state = "ACT"
                 elif st.pending.action.type == "ask_user":
                     state = "ACT"
@@ -328,6 +334,11 @@ async def run_task(goal: str, ctx: AgentContext) -> TaskOutcome:
                     state = "OBSERVE"
                     continue
                 return finish("failed", error="Gemini repeatedly selected controls not present on screen")
+            
+            # Log the full exception before returning
+            print(f"[JARVIS ERROR] Unhandled exception in state machine: {type(e).__name__}: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
             return finish("failed", error=f"{type(e).__name__}: {e}")
 
     return finish("aborted", summary="cancelled")

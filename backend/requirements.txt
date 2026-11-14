@@ -52,7 +52,5 @@ pystray>=0.19.0
 msal>=1.20.0
 playwright>=1.40.0
 
-# Cactus AI - Local inference (Phase 9 Enhancement)
-cactus-compute>=4.2.0
-# Cactus AI - Local inference (Phase 9 Enhancement)
+# Cactus AI - Local inference (Needle 26M, Whistle 16.9MB, Mirage 21.6MB)
 cactus-compute>=4.2.0

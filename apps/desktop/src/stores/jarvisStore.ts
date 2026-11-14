@@ -2,6 +2,44 @@ import { useState, useEffect } from 'react';
 import { wsService } from '../services/websocket';
 import { ApprovalRequest, OrbState, TaskProgress, TaskStatus } from '../types/jarvis';
 
+const API_BASE = 'http://localhost:8000/api';
+
+// TTS helper function
+async function speakText(text: string, voice: string = 'alba'): Promise<void> {
+  try {
+    console.log('[TTS] Generating speech for:', text);
+    const response = await fetch(`${API_BASE}/tts/speech`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, voice, format: 'wav' }),
+    });
+    
+    if (!response.ok) {
+      console.error('[TTS] Failed to generate speech:', response.statusText);
+      return;
+    }
+    
+    const audioBlob = await response.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audio = new Audio(audioUrl);
+    
+    audio.onended = () => {
+      URL.revokeObjectURL(audioUrl);
+      console.log('[TTS] Speech playback completed');
+    };
+    
+    audio.onerror = (err) => {
+      console.error('[TTS] Audio playback error:', err);
+      URL.revokeObjectURL(audioUrl);
+    };
+    
+    await audio.play();
+    console.log('[TTS] Playing speech audio');
+  } catch (error) {
+    console.error('[TTS] Error in speakText:', error);
+  }
+}
+
 export interface JarvisState {
   orbState: OrbState;
   isConnected: boolean;
@@ -10,6 +48,7 @@ export interface JarvisState {
   approval: ApprovalRequest | null;
   history: TaskStatus[];
   statusText: string;
+  backgroundMode: boolean; // NEW: Run tasks in background without disturbing windows
 }
 
 let globalState: JarvisState = {
@@ -20,6 +59,7 @@ let globalState: JarvisState = {
   approval: null,
   history: [],
   statusText: 'JARVIS Ready',
+  backgroundMode: false,
 };
 
 const listeners = new Set<(state: JarvisState) => void>();
@@ -113,6 +153,11 @@ wsService.on('task.completed', (data) => {
     orbState: 'speaking',
     statusText: data.summary ? `Done: ${data.summary}` : 'Task Completed',
   });
+  
+  // Generate and play TTS speech for the response
+  const speechText = data.speech_text || data.summary || 'Task completed';
+  speakText(speechText);
+  
   // Return to idle after speech feedback
   setTimeout(() => {
     if (globalState.orbState === 'speaking') {

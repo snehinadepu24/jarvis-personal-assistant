@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass
 
 from jarvis.core.schema import Screen, Step
+from jarvis.protocol.constants import RiskTier
 from jarvis.safety.denylist import is_denied
 
 DANGEROUS_NAME_RE = re.compile(
@@ -90,7 +91,14 @@ def classify(step: Step, screen: Screen) -> Risk:
     element_types = {"click", "double_click", "right_click", "type", "clear", "select_item", "toggle", "expand", "collapse"}
     if t in element_types:
         mark = getattr(a, "mark", None)
-        elem = screen.by_mark(mark) if mark is not None else None
+        # If no mark specified, treat as low-risk semantic action (like typing text without a specific target)
+        if mark is None:
+            if t == "type":
+                return Risk(RiskTier.LOW, f"type text without specific target element")
+            # Other element actions require a mark
+            return Risk(RiskTier.MEDIUM, f"{t} action without target mark")
+        # Validate the mark exists in the screen
+        elem = screen.by_mark(mark)
         if elem is None:
             return Risk(4, f"target mark {mark} missing from current screen; cannot re-validate", denied=True, window=win_title)
         risk = _element_risk(t, elem, win_title)

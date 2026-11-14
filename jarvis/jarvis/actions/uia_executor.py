@@ -310,7 +310,7 @@ class UiaExecutor:
             screen = await self.backend.observe()
         
         # Validate mark if using snapshot manager
-        if self.snapshot_manager and hasattr(a, 'mark') and a.mark > 0:
+        if self.snapshot_manager and hasattr(a, 'mark') and a.mark is not None and a.mark > 0:
             is_valid, reason = self.snapshot_manager.validate_mark(a.mark, screen)
             if not is_valid:
                 # Snapshot is stale, refresh required
@@ -387,7 +387,7 @@ class UiaExecutor:
             return ActionResult(False, f"connector {a.tool} not registered")
 
         # Special case: typing without a mark (focused window typing)
-        if a.type == "type" and (not hasattr(a, 'mark') or a.mark == 0):
+        if a.type == "type" and (not hasattr(a, 'mark') or a.mark is None or a.mark == 0):
             from pywinauto.keyboard import send_keys
             try:
                 # Type directly into focused window

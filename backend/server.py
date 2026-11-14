@@ -163,8 +163,17 @@ def update_voice_config(update: VoiceConfigUpdate):
 
 @api_router.post("/stt/transcribe")
 async def transcribe_audio(file: UploadFile = File(...)):
+    logger.info(f"[STT] Received file: {file.filename}, content_type: {file.content_type}")
     audio_bytes = await file.read()
+    logger.info(f"[STT] Audio size: {len(audio_bytes)} bytes")
+    
+    # Log first few bytes to verify WAV header
+    if len(audio_bytes) > 4:
+        header = audio_bytes[:4]
+        logger.info(f"[STT] File header: {header} (should be b'RIFF' for WAV)")
+    
     result = stt_service.transcribe_bytes(audio_bytes)
+    logger.info(f"[STT] Transcription result: {result}")
     return result
 
 @api_router.post("/assistant/respond", response_model=AssistantResponse)

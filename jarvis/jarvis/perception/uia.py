@@ -74,9 +74,13 @@ class UiaThread:
         while True:
             fn, fut = self.q.get()
             try:
-                fut.set_result(fn(self))
+                # Check if future was cancelled before attempting to set result
+                if not fut.cancelled():
+                    fut.set_result(fn(self))
             except Exception as e:
-                fut.set_exception(e)
+                # Only set exception if future wasn't cancelled
+                if not fut.cancelled():
+                    fut.set_exception(e)
 
     def submit(self, fn) -> cf.Future:
         fut = cf.Future()

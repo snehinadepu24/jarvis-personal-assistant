@@ -206,7 +206,7 @@ async def test_navigation_strategy():
         
         class MockExecutor:
             async def apply(self, step, screen=None):
-                from jarvis.actions.result import ActionResult
+                from jarvis.actions.base import ActionResult
                 return ActionResult(True, "mocked")
         
         backend = MockBackend()

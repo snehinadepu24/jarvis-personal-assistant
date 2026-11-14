@@ -146,40 +146,79 @@ class AgentBridge:
         goal = active.goal
         cfg = self.config
 
+        logger.info(f"[Bridge] _execute_task started for {task_id}")
+        
         fs_root = cfg.data_dir / f"data_{task_id}"
+        logger.info(f"[Bridge] Creating fs_root: {fs_root}")
+        
         from jarvis.connectors.files import FilesConnector
+        logger.info(f"[Bridge] Imported FilesConnector")
         from jarvis.safety.audit import Audit
         from jarvis.safety.gate import ConfirmationGate
 
+        logger.info(f"[Bridge] Imported safety modules")
+        
         # Check backend
         from jarvis.bench.runner import _use_mock
+        
+        logger.info(f"[Bridge] Checking if using mock backend...")
         
         # Initialize shared components
         snapshot_manager = None
         navigation_strategy = None
         
         if _use_mock(cfg):
+            logger.info(f"[Bridge] Using mock backend")
             from jarvis.perception.mock_backend import SimulatedDesktop
             from jarvis.actions.mock_executor import MockExecutor
             desktop = SimulatedDesktop(fs_root=fs_root)
             backend = desktop
             executor = MockExecutor(desktop, FilesConnector(fs_root))
         else:
-            from jarvis.perception.base import build_backend
-            from jarvis.actions.uia_executor import UiaExecutor
-            from jarvis.perception.snapshot import get_snapshot_manager
-            from jarvis.perception.navigation import create_navigation_strategy
+            logger.info(f"[Bridge] Using real UIA backend")
+            logger.info(f"[Bridge] About to import perception modules...")
             
-            backend = build_backend(cfg)
+            # Import build_backend first (lightweight)
+            from jarvis.perception.base import build_backend
+            logger.info(f"[Bridge] Imported build_backend")
+            
+            # Import snapshot and navigation (don't import UiaExecutor yet - it has heavy COM imports)
+            from jarvis.perception.snapshot import get_snapshot_manager
+            logger.info(f"[Bridge] Imported get_snapshot_manager")
+            from jarvis.perception.navigation import create_navigation_strategy
+            logger.info(f"[Bridge] Imported create_navigation_strategy")
+            
+            logger.info(f"[Bridge] Building backend (async to avoid blocking)...")
+            # Run backend initialization in thread pool to avoid blocking event loop
+            # UiaThread.__init__() does a blocking wait() for COM initialization
+            try:
+                backend = await asyncio.wait_for(
+                    asyncio.to_thread(build_backend, cfg),
+                    timeout=10.0  # 10 second timeout
+                )
+                logger.info(f"[Bridge] Backend built successfully: {backend}")
+            except asyncio.TimeoutError:
+                logger.error("[Bridge] Backend initialization timed out after 10 seconds!")
+                raise RuntimeError("Backend initialization timeout - UIA backend may be frozen")
             
             # Initialize snapshot manager for stale reference detection
+            logger.info(f"[Bridge] Getting snapshot manager...")
             snapshot_manager = get_snapshot_manager()
+            logger.info(f"[Bridge] Snapshot manager ready")
             
-            # Create executor with snapshot manager
-            executor = UiaExecutor(backend, FilesConnector(fs_root), snapshot_manager=snapshot_manager)
+            # NOW import UiaExecutor (after backend is ready, in thread to avoid blocking)
+            logger.info(f"[Bridge] Importing UiaExecutor (has heavy COM imports)...")
+            def import_and_create_executor():
+                from jarvis.actions.uia_executor import UiaExecutor
+                return UiaExecutor(backend, FilesConnector(fs_root), snapshot_manager=snapshot_manager)
+            
+            executor = await asyncio.to_thread(import_and_create_executor)
+            logger.info(f"[Bridge] Executor created")
             
             # Create navigation strategy for complex UI navigation
+            logger.info(f"[Bridge] Creating navigation strategy...")
             navigation_strategy = create_navigation_strategy(backend, executor)
+            logger.info(f"[Bridge] Navigation strategy ready")
 
         audit_path = cfg.data_dir / f"audit_{task_id}.db"
         audit = Audit(audit_path)
@@ -237,6 +276,8 @@ class AgentBridge:
                 active.status = "completed"
                 active.summary = ev_data.get("summary", "")
                 active.metrics = ev_data.get("metrics", {})
+                # Add speech_text for TTS generation in frontend
+                ev_data["speech_text"] = active.summary if active.summary else "Task completed"
             elif ev_name in ("task.failed", "task.cancelled"):
                 active.status = "failed" if ev_name == "task.failed" else "cancelled"
                 active.error = ev_data.get("error", "")
@@ -257,36 +298,33 @@ class AgentBridge:
             ])
         else:
             # Try to use a pre-defined script for common tasks (faster & more reliable)
-            from jarvis.agent.common_scripts import QUICK_LAUNCH, open_notepad_and_type, open_app_fast
+            from jarvis.agent.common_scripts import get_script_for_goal
             
-            script_planner = None
-            goal_lower = goal.lower()
-            
-            # Pattern: "open notepad and write/type X"
-            if "notepad" in goal_lower and ("write" in goal_lower or "type" in goal_lower):
-                for keyword in ["write", "type"]:
-                    if keyword in goal_lower:
-                        text = goal_lower.split(keyword)[-1].strip().rstrip('.')
-                        script_planner = open_notepad_and_type(text)
-                        break
-            
-            # Pattern: "open/launch [app]"
-            if not script_planner:
-                for trigger in ["open", "launch", "start"]:
-                    if trigger in goal_lower:
-                        for app_name, command in QUICK_LAUNCH.items():
-                            if app_name in goal_lower:
-                                script_planner = open_app_fast(app_name)
-                                break
-                        if script_planner:
-                            break
+            script_planner = get_script_for_goal(goal)
             
             if script_planner:
-                logger.info(f"[Bridge] Using scripted planner for common task pattern")
+                logger.info(f"[Bridge] Using scripted planner for common task pattern: {goal}")
                 planner = script_planner
             else:
-                # Fall back to AI planning for complex/unknown tasks
-                planner = LlmRouter(GeminiLLM(cfg.planner_model), thinking=cfg.thinking)
+                # Try Cactus Needle (local AI) first, fallback to Gemini if unavailable
+                planner = None
+                
+                try:
+                    from jarvis.cactus_config import get_config
+                    from jarvis.llm.cactus_planner import create_cactus_planner
+                    
+                    cactus_cfg = get_config()
+                    if cactus_cfg.enabled and cactus_cfg.planner_use_cactus:
+                        logger.info(f"[Bridge] Attempting to use Cactus Needle (local AI planner)...")
+                        planner = create_cactus_planner()
+                        logger.info(f"[Bridge] ✅ Using Cactus Needle - Zero API cost, 100% private")
+                except Exception as e:
+                    logger.warning(f"[Bridge] Cactus Needle unavailable ({e}), falling back to Gemini")
+                
+                # Fallback to Gemini if Cactus not available
+                if planner is None:
+                    logger.info(f"[Bridge] Using Gemini cloud API as planner fallback")
+                    planner = LlmRouter(GeminiLLM(cfg.planner_model), thinking=cfg.thinking)
 
         ctx = AgentContext(
             llm=planner,
@@ -303,7 +341,9 @@ class AgentBridge:
         active.ctx = ctx
 
         try:
+            logger.info(f"[Bridge] Context created, calling run_task...")
             outcome = await run_task(goal, ctx)
+            logger.info(f"[Bridge] run_task completed with status: {outcome.status}")
             active.status = "completed" if outcome.status == "done" else outcome.status
             active.summary = outcome.summary
             active.error = outcome.error
@@ -311,14 +351,17 @@ class AgentBridge:
             active.metrics = outcome.metrics
         except asyncio.CancelledError:
             active.status = "cancelled"
+            logger.warning(f"[Bridge] Task {task_id} cancelled")
             await self.broadcast_event(EventType.TASK_CANCELLED, {"reason": "Task cancelled by user"}, task_id=task_id)
         except Exception as e:
             active.status = "failed"
             active.error = str(e)
+            logger.error(f"[Bridge] Task {task_id} failed with exception: {e}", exc_info=True)
             await self.broadcast_event(EventType.TASK_FAILED, {"error": str(e)}, task_id=task_id)
         finally:
             if self.current_task_id == task_id:
                 self.current_task_id = None
+            logger.info(f"[Bridge] Task {task_id} finished with status: {active.status}")
 
     async def respond_approval(self, task_id: str, nonce: str, approved: bool, reason: str = "") -> bool:
         active = self.tasks.get(task_id)

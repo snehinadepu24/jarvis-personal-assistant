@@ -142,36 +142,36 @@ class _A(BaseModel):
 
 class Click(_A):
     type: Literal["click", "double_click", "right_click"]
-    mark: int = 0
+    mark: int | None = None
 
 
 class SetText(_A):
     type: Literal["type"]
-    mark: int = 0
+    mark: int | None = None
     text: str
     submit: bool = False
 
 
 class Clear(_A):
     type: Literal["clear"]
-    mark: int = 0
+    mark: int | None = None
 
 
 class SelectItem(_A):
     type: Literal["select_item"]
-    mark: int = 0
+    mark: int | None = None
     item: str | None = None
 
 
 class Toggle(_A):
     type: Literal["toggle"]
-    mark: int = 0
+    mark: int | None = None
     desired: Literal["on", "off"] | None = None
 
 
 class Expand(_A):
     type: Literal["expand", "collapse"]
-    mark: int = 0
+    mark: int | None = None
 
 
 class Scroll(_A):
